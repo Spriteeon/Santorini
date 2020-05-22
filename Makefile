@@ -1,13 +1,18 @@
 CXXFLAGS=-std=c++14
-CFLAGS=-g -lsfml-graphics -lsfml-window -lsfml-system
+CFLAGS=-g -lsfml-graphics -lsfml-window -lsfml-system -lsfml-network -pthread
 CPPFLAGS=
 LDFLAGS=
 LDLIBS=
 LIBS=
 CPP=g++
 
-main: main.o entity.o tile.o builder.o world.o game.o
+all: main server
+
+main: builder.o entity.o game.o main.o message.o network.o receiver.o tile.o util.o world.o
+	$(CPP) $(CXXFLAGS) $(LIBS) $^ -o $@ $(CFLAGS)
+
+server: util.o server.o
 	$(CPP) $(CXXFLAGS) $(LIBS) $^ -o $@ $(CFLAGS)
 
 clean:
-	\rm -f *.o main
+	\rm -f *.o main server

@@ -3,10 +3,15 @@
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
+#include <sstream>
+#include <cstring>
+#include <memory>
 
 world::world(sf::RenderWindow& w, game *g_):
     window(w),
-    g(g_)
+    g(g_),
+    queue(),
+    network(queue)
 {
     srand(time(0));
     window.setFramerateLimit(60);
@@ -67,9 +72,10 @@ void world::build(const sf::Vector2i& pos)
     //Check if not dome
     if(noBuilder(pos) && nearSelectedBuilder(pos) && noDome(pos))
     {
-        tiles[pos.x][pos.y].build();
-        state = WorldState::Select;
-        turn++;
+        network.send(MsgPos(MsgType::Build, id, pos));
+        //tiles[pos.x][pos.y].build();
+        //state = WorldState::Select;
+        //turn++;
     }
 }
 
@@ -82,7 +88,8 @@ void world::move(const sf::Vector2i& pos)
         {
             if (builders[i].pos == pos && turn % 2 == builders[i].player) //If this is players builder and players turn
             {
-                selectedBuilderIndex = i; //Change Builder
+                //selectedBuilderIndex = i; //Change Builder
+                network.send(MsgSelect(id, i));
                 return;
             }
         }
@@ -110,8 +117,9 @@ void world::move(const sf::Vector2i& pos)
             
         }
         sf::Vector2i m = pos - builders[selectedBuilderIndex].pos;
-        builders[selectedBuilderIndex].move(m);
-        state = WorldState::Build;
+        network.send(MsgPos(MsgType::Move, id, m));
+        //builders[selectedBuilderIndex].move(m);
+        //state = WorldState::Build;
     }
 }
 
@@ -120,12 +128,13 @@ void world::place(const sf::Vector2i& pos)
     //Check if no Builder is there
     if (noBuilder(pos))
     {
-        builders.push_back(builder(pos.x, pos.y, buildersSoFar/2));
-        buildersSoFar++;
-        if (buildersSoFar == 4)
-        {
-            state = WorldState::Select;
-        }
+        network.send(MsgPos(MsgType::Place, id, pos));
+        //builders.push_back(builder(pos.x, pos.y, buildersSoFar/2));
+        //buildersSoFar++;
+        //if (buildersSoFar == 4)
+        //{
+        //    state = WorldState::Select;
+        //}
     }
 }
 
@@ -135,14 +144,12 @@ void world::select(const sf::Vector2i& pos)
     //Check if Builder has valid move TODO
     for(int i = 0; i < builders.size(); i++)
     {
-        if(pos == builders[i].pos)
+        if((pos == builders[i].pos) && (turn % 2 == builders[i].player))
         {
-            if (turn % 2 == builders[i].player)
-            {
-                selectedBuilderIndex = i;
-                state = WorldState::Move;
-                return;
-            }
+            network.send(MsgSelect(id, i));
+            //selectedBuilderIndex = i;
+            //state = WorldState::Move;
+            return;
         }
     }
 }
@@ -183,6 +190,89 @@ void world::update()
             clicked = false;
         }
     }
+    //Input has been processed
+    //Now let's take care of incoming messages
+    //The receiver thread would have put the messages in the queue
+    Message m;
+    queue.pop(m); //non blocking pop
+    //If this is an empty packet i.e. there is nothing in the queue, then there is no need to process the message
+    if(m.first.endOfPacket())
+    {
+        return;
+    }
+    //Otherwise, we need to process the message
+    Msg msg;
+    readMsg(m, msg);
+    //msg now contains the received message
+    switch(msg.msgtype)
+    {
+        case MsgType::Register:
+            std::cout << "MsgType::Register\n";
+            //Should process the message to add a player
+            break;
+        case MsgType::Select:
+            std::cout << "Msgtype::Select\n";
+            processSelect(msg);
+            break;
+        case MsgType::Move:
+            std::cout << "MsgType::Move\n";
+            processMove(msg);
+            break;
+        case MsgType::Build:
+            std::cout << "MsgType::Build\n";
+            processBuild(msg);
+            break;
+        case MsgType::Rand:
+            std::cout << "MsgType::Rand\n";
+            break;
+        case MsgType::Place:
+            std::cout << "MsgType::Place\n";
+            processPlace(msg);
+            break;
+        default:
+            std::cout << "MsgType::Undefined";
+            break;
+    }
+
+}
+
+void world::processBuild(const Msg& msg)
+{
+    MsgPos m_pos;
+    std::memcpy(&m_pos, &msg, sizeof(MsgPos));
+    tiles[m_pos.x][m_pos.y].build();
+    state = WorldState::Select;
+    turn++;
+}
+
+void world::processMove(const Msg& msg)
+{
+    MsgPos m_pos;
+    std::memcpy(&m_pos, &msg, sizeof(MsgPos));
+    sf::Vector2i pos(m_pos.x, m_pos.y);
+    builders[selectedBuilderIndex].move(pos);
+    state = WorldState::Build;
+}
+
+void world::processPlace(const Msg& msg)
+{
+    MsgPos m_pos;
+    std::memcpy(&m_pos, &msg, sizeof(MsgPos));
+    sf::Vector2i pos(m_pos.x, m_pos.y);
+    builders.push_back(builder(pos.x, pos.y, buildersSoFar/2));
+    buildersSoFar++;
+    if (buildersSoFar == 4)
+    {
+        state = WorldState::Select;
+    }
+}
+
+void world::processSelect(const Msg& msg)
+{
+    MsgSelect m_select;
+    std::memcpy(&m_select, &msg, sizeof(MsgSelect));
+    selectedBuilderIndex = static_cast<int>(m_select.builderID);
+    state = WorldState::Move;
 }
 
 void world::draw()

@@ -3,6 +3,9 @@
 #include "tile.hpp"
 #include "builder.hpp"
 
+#include "network.hpp"
+#include "queue.hpp"
+
 #ifndef WORLD_HPP
 #define WORLD_HPP
 
@@ -27,12 +30,15 @@ class world {
     private:
         game *g;
         sf::RenderWindow& window;
+
+        Queue<Message> queue;
+        Network network;
+        sf::Uint32 id;
+
         std::array<std::array<tile, 5>, 5> tiles{{{{tile(), tile(), tile()}}, {{tile(), tile(), tile()}}, {{tile(), tile(), tile()}}}} ;
         std::vector<builder> builders;
         unsigned short turn;
-
         unsigned short buildersSoFar;
-
         unsigned int selectedBuilderIndex;
         WorldState state = WorldState::Place;
 
@@ -45,6 +51,11 @@ class world {
         bool noDome(const sf::Vector2i& pos);
         bool nearSelectedBuilder(const sf::Vector2i& pos);
         int levelDiff(const sf::Vector2i& pos);
+
+        void processBuild(const Msg& msg);
+        void processMove(const Msg& msg);
+        void processPlace(const Msg& msg);
+        void processSelect(const Msg& msg);
 
 };
 #endif
