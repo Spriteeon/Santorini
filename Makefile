@@ -6,13 +6,13 @@ LDLIBS=
 LIBS=
 CPP=g++
 
-all: main server
+all: client server
 
-main: builder.o entity.o game.o main.o message.o network.o receiver.o tile.o util.o world.o
+client: builder.o entity.o game.o client.o message.o network.o receiver.o accepter.o tile.o util.o world.o
 	$(CPP) $(CXXFLAGS) $(LIBS) $^ -o $@ $(CFLAGS)
 
-server: util.o server.o
+server: util.o server.o accepter.o receiver.o message.o startServer.o
 	$(CPP) $(CXXFLAGS) $(LIBS) $^ -o $@ $(CFLAGS)
 
 clean:
-	\rm -f *.o main server
+	\rm -f *.o client server

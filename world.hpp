@@ -42,10 +42,10 @@ class world {
         unsigned int selectedBuilderIndex;
         WorldState state = WorldState::Place;
 
-        void build(const sf::Vector2i& pos);
-        void move(const sf::Vector2i& pos);
-        void place(const sf::Vector2i& pos);
-        void select(const sf::Vector2i& pos);
+        void build(const sf::Vector2i& pos, bool toSend = true);
+        void move(const sf::Vector2i& pos, bool toSend = true);
+        void place(const sf::Vector2i& pos, bool toSend = true);
+        void select(const sf::Vector2i& pos, bool toSend = true);
 
         bool noBuilder(const sf::Vector2i& pos);
         bool noDome(const sf::Vector2i& pos);

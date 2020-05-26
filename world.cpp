@@ -65,21 +65,24 @@ int world::levelDiff(const sf::Vector2i& pos)
     return tiles[pos.x][pos.y].level - tiles[bpos.x][bpos.y].level;
 }
 
-void world::build(const sf::Vector2i& pos)
+void world::build(const sf::Vector2i& pos, bool toSend)
 {
     //Check if no builder is there 
     //Check if near selected Builder
     //Check if not dome
     if(noBuilder(pos) && nearSelectedBuilder(pos) && noDome(pos))
     {
-        network.send(MsgPos(MsgType::Build, id, pos));
-        //tiles[pos.x][pos.y].build();
-        //state = WorldState::Select;
-        //turn++;
+        if(toSend)
+        {
+            network.send(MsgPos(MsgType::Build, id, pos));
+        }
+        tiles[pos.x][pos.y].build();
+        state = WorldState::Select;
+        turn++;
     }
 }
 
-void world::move(const sf::Vector2i& pos)
+void world::move(const sf::Vector2i& pos, bool toSend)
 {
 
     if (!noBuilder(pos))
@@ -89,7 +92,10 @@ void world::move(const sf::Vector2i& pos)
             if (builders[i].pos == pos && turn % 2 == builders[i].player) //If this is players builder and players turn
             {
                 //selectedBuilderIndex = i; //Change Builder
-                network.send(MsgSelect(id, i));
+                if (toSend)
+                {
+                    network.send(MsgSelect(id, i));
+                }
                 return;
             }
         }
@@ -116,29 +122,35 @@ void world::move(const sf::Vector2i& pos)
             }
             
         }
+        if (toSend)
+        {
+            network.send(MsgPos(MsgType::Move, id, pos));
+        }
         sf::Vector2i m = pos - builders[selectedBuilderIndex].pos;
-        network.send(MsgPos(MsgType::Move, id, m));
-        //builders[selectedBuilderIndex].move(m);
-        //state = WorldState::Build;
+        builders[selectedBuilderIndex].move(m);
+        state = WorldState::Build;
     }
 }
 
-void world::place(const sf::Vector2i& pos)
+void world::place(const sf::Vector2i& pos, bool toSend)
 {
     //Check if no Builder is there
     if (noBuilder(pos))
     {
-        network.send(MsgPos(MsgType::Place, id, pos));
-        //builders.push_back(builder(pos.x, pos.y, buildersSoFar/2));
-        //buildersSoFar++;
-        //if (buildersSoFar == 4)
-        //{
-        //    state = WorldState::Select;
-        //}
+        if (toSend)
+        {
+            network.send(MsgPos(MsgType::Place, id, pos));
+        }
+        builders.push_back(builder(pos.x, pos.y, buildersSoFar/2));
+        buildersSoFar++;
+        if (buildersSoFar == 4)
+        {
+            state = WorldState::Select;
+        }
     }
 }
 
-void world::select(const sf::Vector2i& pos)
+void world::select(const sf::Vector2i& pos, bool toSend)
 {
     //Check correct Player
     //Check if Builder has valid move TODO
@@ -146,9 +158,12 @@ void world::select(const sf::Vector2i& pos)
     {
         if((pos == builders[i].pos) && (turn % 2 == builders[i].player))
         {
-            network.send(MsgSelect(id, i));
-            //selectedBuilderIndex = i;
-            //state = WorldState::Move;
+            if (toSend)
+            {
+                network.send(MsgSelect(id, i));
+            }
+            selectedBuilderIndex = i;
+            state = WorldState::Move;
             return;
         }
     }
@@ -240,9 +255,8 @@ void world::processBuild(const Msg& msg)
 {
     MsgPos m_pos;
     std::memcpy(&m_pos, &msg, sizeof(MsgPos));
-    tiles[m_pos.x][m_pos.y].build();
-    state = WorldState::Select;
-    turn++;
+    sf::Vector2i pos(m_pos.x, m_pos.y);
+    build(pos, false);
 }
 
 void world::processMove(const Msg& msg)
@@ -250,8 +264,7 @@ void world::processMove(const Msg& msg)
     MsgPos m_pos;
     std::memcpy(&m_pos, &msg, sizeof(MsgPos));
     sf::Vector2i pos(m_pos.x, m_pos.y);
-    builders[selectedBuilderIndex].move(pos);
-    state = WorldState::Build;
+    move(pos, false);
 }
 
 void world::processPlace(const Msg& msg)
@@ -259,18 +272,14 @@ void world::processPlace(const Msg& msg)
     MsgPos m_pos;
     std::memcpy(&m_pos, &msg, sizeof(MsgPos));
     sf::Vector2i pos(m_pos.x, m_pos.y);
-    builders.push_back(builder(pos.x, pos.y, buildersSoFar/2));
-    buildersSoFar++;
-    if (buildersSoFar == 4)
-    {
-        state = WorldState::Select;
-    }
+    place(pos, false);
 }
 
 void world::processSelect(const Msg& msg)
 {
     MsgSelect m_select;
     std::memcpy(&m_select, &msg, sizeof(MsgSelect));
+    //We may need to call select(pos, false) in the future
     selectedBuilderIndex = static_cast<int>(m_select.builderID);
     state = WorldState::Move;
 }

@@ -12,6 +12,7 @@ class Network
         Network(Queue<Message>& q);
         ~Network();
         
+        void reg(const sf::Uint32 id);
         void send(const MsgReg& msg);
         void send(const MsgSelect& msg);
         void send(const MsgRand& msg);

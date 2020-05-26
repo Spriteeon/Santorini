@@ -1,4 +1,5 @@
 #include "network.hpp"
+#include "accepter.hpp"
 #include "receiver.hpp"
 #include <iostream>
 #include <SFML/Network.hpp>
@@ -31,20 +32,22 @@ Network::Network(Queue<Message>& q):
     std::cout << "Client::main Connected\n";
 
     //Register with the server first
-    MsgReg m_reg;
+    //MsgReg m_reg;
     //Let's give the player a random ID
-    m_reg.id = rand() % 16384;
+    //m_reg.id = rand() % 16384;
+    sf::Uint32 id = rand() % 16384;
+    reg(id);
     //Let's give the player a name
-    m_reg.username = "Batman";
-    sf::Packet m_reg_packet;
-    m_reg_packet << m_reg;
-    auto send1 = [&] {return socket->send(m_reg_packet); };
-    net_run(send1, "send");
+    //m_reg.username = "Batman";
+    //sf::Packet m_reg_packet;
+    //m_reg_packet << m_reg;
+    //auto send1 = [&] {return socket->send(m_reg_packet); };
+    //net_run(send1, "send");
 
     //This should not do anything with an echo server
     //We will just get our message back
     //However a real server will need this
-    std::cout << "Sent register\n";
+    //std::cout << "Sent register\n";
 
     //Start Receiver thread
     //std::shared_ptr<Receiver> r = std::make_shared<Receiver>(socket, queue);
@@ -57,6 +60,20 @@ Network::Network(Queue<Message>& q):
 Network::~Network()
 {
 
+}
+
+void Network::reg(const sf::Uint32 id)
+{
+    //Register with the server first
+    sf::Packet m_reg_packet;
+    m_reg_packet << MsgReg(id, "Batman");
+    auto send1 = [&] {return socket->send(m_reg_packet); };
+    net_run(send1, "send");
+
+    //This should not do anything with an echo server
+    //We will just get our message back
+    //However a real server will need this 
+    std::cout << "Sent register\n";
 }
 
 void Network::send(const MsgReg& msg)
